@@ -156,6 +156,9 @@ typedef struct MNVGfragUniforms MNVGfragUniforms;
 @property (nonatomic, assign) MTLClearColor clearColor;
 @property (nonatomic, assign) BOOL clearBufferOnFlush;
 
+// Keeps the weak reference to the currently binded framebuffer.
+@property (nonatomic, assign) MNVGframebuffer* currentFramebuffer;
+
 // Textures
 @property (nonatomic, strong) NSMutableArray<MNVGtexture*>* textures;
 @property int textureId;
@@ -257,9 +260,6 @@ typedef struct MNVGfragUniforms MNVGfragUniforms;
                                pixelFormat:(MTLPixelFormat)pixelFormat;
 
 @end
-
-// Keeps the weak reference to the currently binded framebuffer.
-MNVGframebuffer* s_framebuffer = NULL;
 
 const MTLResourceOptions kMetalBufferOptions = \
     (MTLResourceCPUCacheModeWriteCombined | MTLResourceStorageModeShared);
@@ -494,8 +494,9 @@ void nvgDeleteMTL(NVGcontext* ctx) {
   nvgDeleteInternal(ctx);
 }
 
-void mnvgBindFramebuffer(MNVGframebuffer* framebuffer) {
-  s_framebuffer = framebuffer;
+void mnvgBindFramebuffer(NVGcontext* ctx, MNVGframebuffer* fb) {
+  MNVGcontext* mtl = (__bridge MNVGcontext*)nvgInternalParams(ctx)->userPtr;
+  mtl.currentFramebuffer = fb;
 }
 
 MNVGframebuffer* mnvgCreateFramebuffer(NVGcontext* ctx, int width,
@@ -1434,12 +1435,12 @@ error:
       dispatch_semaphore_signal(self.semaphore);
   }];
 
-  if (s_framebuffer == NULL ||
-      nvgInternalParams(s_framebuffer->ctx)->userPtr != (__bridge void*)self) {
+  if (_currentFramebuffer == NULL ||
+      nvgInternalParams(_currentFramebuffer->ctx)->userPtr != (__bridge void*)self) {
     textureSize = _viewPortSize;
   } else {  // renders in framebuffer
-    buffers.image = s_framebuffer->image;
-    MNVGtexture* tex = [self findTexture:s_framebuffer->image];
+    buffers.image = _currentFramebuffer->image;
+    MNVGtexture* tex = [self findTexture:_currentFramebuffer->image];
     colorTexture = tex->tex;
     textureSize = (vector_uint2){(uint)colorTexture.width,
                                  (uint)colorTexture.height};
@@ -1481,7 +1482,7 @@ error:
 
 #if TARGET_OS_OSX
   // Makes mnvgReadPixels() work as expected on Mac.
-  if (s_framebuffer != NULL) {
+  if (_currentFramebuffer != NULL) {
     id<MTLBlitCommandEncoder> blitCommandEncoder = [_buffers.commandBuffer
         blitCommandEncoder];
     [blitCommandEncoder synchronizeResource:colorTexture];
