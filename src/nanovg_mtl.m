@@ -36,6 +36,12 @@
 
 #include "nanovg.h"
 
+#if !defined(NVG_MALLOC) && !defined(NVG_REALLOC) && !defined(NVG_FREE)
+#define NVG_MALLOC(size) malloc(size)
+#define NVG_REALLOC(ptr, size) realloc(ptr, size)
+#define NVG_FREE(ptr) free(ptr)
+#endif
+
 #if TARGET_OS_SIMULATOR
 #  include "mnvg_bitcode/simulator.h"
 #elif TARGET_OS_IOS
@@ -502,7 +508,7 @@ void mnvgBindFramebuffer(NVGcontext* ctx, MNVGframebuffer* fb) {
 MNVGframebuffer* mnvgCreateFramebuffer(NVGcontext* ctx, int width,
                                        int height, int imageFlags) {
   MNVGframebuffer* framebuffer = \
-      (MNVGframebuffer*)malloc(sizeof(MNVGframebuffer));
+      (MNVGframebuffer*)NVG_MALLOC(sizeof(MNVGframebuffer));
   if (framebuffer == NULL)
     return NULL;
 
@@ -519,7 +525,7 @@ void mnvgDeleteFramebuffer(MNVGframebuffer* framebuffer) {
   if (framebuffer->image > 0) {
     nvgDeleteImage(framebuffer->ctx, framebuffer->image);
   }
-  free(framebuffer);
+  NVG_FREE(framebuffer);
 }
 
 void mnvgClearWithColor(NVGcontext* ctx, NVGcolor color) {
@@ -650,7 +656,7 @@ enum MNVGTarget mnvgTarget() {
   if (_buffers.ncalls + 1 > _buffers.ccalls) {
     MNVGcall* calls;
     int ccalls = mtlnvg__maxi(_buffers.ncalls + 1, 128) + _buffers.ccalls / 2;
-    calls = (MNVGcall*)realloc(_buffers.calls, sizeof(MNVGcall) * ccalls);
+    calls = (MNVGcall*)NVG_REALLOC(_buffers.calls, sizeof(MNVGcall) * ccalls);
     if (calls == NULL) return NULL;
     _buffers.calls = calls;
     _buffers.ccalls = ccalls;
@@ -1063,7 +1069,7 @@ enum MNVGTarget mnvgTarget() {
   }
 
   // Initializes default blend states.
-  _blendFunc = malloc(sizeof(MNVGblend));
+  _blendFunc = NVG_MALLOC(sizeof(MNVGblend));
   _blendFunc->srcRGB = MTLBlendFactorOne;
   _blendFunc->dstRGB = MTLBlendFactorOneMinusSourceAlpha;
   _blendFunc->srcAlpha = MTLBlendFactorOne;
@@ -1272,7 +1278,7 @@ enum MNVGTarget mnvgTarget() {
     buffers.indexBuffer = nil;
     buffers.vertBuffer = nil;
     buffers.uniformBuffer = nil;
-    free(buffers.calls);
+    NVG_FREE(buffers.calls);
   }
 
   for (MNVGtexture* texture in _textures) {
@@ -1280,7 +1286,7 @@ enum MNVGTarget mnvgTarget() {
     texture->sampler = nil;
   }
 
-  free(_blendFunc);
+  NVG_FREE(_blendFunc);
   _commandQueue = nil;
   _renderEncoder = nil;
   _textures = nil;
