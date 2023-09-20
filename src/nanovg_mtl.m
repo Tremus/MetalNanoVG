@@ -163,7 +163,7 @@ typedef struct MNVGfragUniforms MNVGfragUniforms;
 @property (nonatomic, assign) BOOL clearBufferOnFlush;
 
 // Keeps the weak reference to the currently binded framebuffer.
-@property (nonatomic, assign) MNVGframebuffer* currentFramebuffer;
+@property (nonatomic, assign) int currentFramebuffer;
 
 // Textures
 @property (nonatomic, strong) NSMutableArray<MNVGtexture*>* textures;
@@ -500,32 +500,15 @@ void nvgDeleteMTL(NVGcontext* ctx) {
   nvgDeleteInternal(ctx);
 }
 
-void mnvgBindFramebuffer(NVGcontext* ctx, MNVGframebuffer* fb) {
+void mnvgBindFramebuffer(NVGcontext* ctx, int img) {
   MNVGcontext* mtl = (__bridge MNVGcontext*)nvgInternalParams(ctx)->userPtr;
-  mtl.currentFramebuffer = fb;
+  mtl.currentFramebuffer = img;
 }
 
-MNVGframebuffer* mnvgCreateFramebuffer(NVGcontext* ctx, int width,
+int mnvgCreateFramebuffer(NVGcontext* ctx, int width,
                                        int height, int imageFlags) {
-  MNVGframebuffer* framebuffer = \
-      (MNVGframebuffer*)NVG_MALLOC(sizeof(MNVGframebuffer));
-  if (framebuffer == NULL)
-    return NULL;
-
-  memset(framebuffer, 0, sizeof(MNVGframebuffer));
-  framebuffer->image = nvgCreateImageRGBA(ctx, width, height,
-                                          imageFlags | NVG_IMAGE_PREMULTIPLIED,
-                                          NULL);
-  framebuffer->ctx = ctx;
-  return framebuffer;
-}
-
-void mnvgDeleteFramebuffer(MNVGframebuffer* framebuffer) {
-  if (framebuffer == NULL) return;
-  if (framebuffer->image > 0) {
-    nvgDeleteImage(framebuffer->ctx, framebuffer->image);
-  }
-  NVG_FREE(framebuffer);
+  return nvgCreateImageRGBA(ctx, width, height,
+                            imageFlags | NVG_IMAGE_PREMULTIPLIED, NULL);
 }
 
 void mnvgClearWithColor(NVGcontext* ctx, NVGcolor color) {
@@ -1441,12 +1424,11 @@ error:
       dispatch_semaphore_signal(self.semaphore);
   }];
 
-  if (_currentFramebuffer == NULL ||
-      nvgInternalParams(_currentFramebuffer->ctx)->userPtr != (__bridge void*)self) {
+  if (_currentFramebuffer == 0) {
     textureSize = _viewPortSize;
   } else {  // renders in framebuffer
-    buffers.image = _currentFramebuffer->image;
-    MNVGtexture* tex = [self findTexture:_currentFramebuffer->image];
+    buffers.image = _currentFramebuffer;
+    MNVGtexture* tex = [self findTexture:_currentFramebuffer];
     colorTexture = tex->tex;
     textureSize = (vector_uint2){(uint)colorTexture.width,
                                  (uint)colorTexture.height};
@@ -1488,7 +1470,7 @@ error:
 
 #if TARGET_OS_OSX
   // Makes mnvgReadPixels() work as expected on Mac.
-  if (_currentFramebuffer != NULL) {
+  if (_currentFramebuffer != 0) {
     id<MTLBlitCommandEncoder> blitCommandEncoder = [_buffers.commandBuffer
         blitCommandEncoder];
     [blitCommandEncoder synchronizeResource:colorTexture];

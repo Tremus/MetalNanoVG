@@ -61,12 +61,6 @@ enum MNVGTarget {
   MNVG_UNKNOWN,
 };
 
-struct MNVGframebuffer {
-  NVGcontext* ctx;
-  int image;
-};
-typedef struct MNVGframebuffer MNVGframebuffer;
-
 // Creates a new NanoVG context. The `metalLayer` parameter should be a
 // `CAMetalLayer` object, and the `flags` should be combination of
 // `NVGcreateFlags` above.
@@ -80,14 +74,8 @@ void nvgDeleteMTL(NVGcontext* ctx);
 //
 
 // Binds the specified framebuffer as the current render pass.
-void mnvgBindFramebuffer(NVGcontext* ctx, MNVGframebuffer* framebuffer);
-
-// Creates a new framebuffer.
-MNVGframebuffer* mnvgCreateFramebuffer(NVGcontext* ctx, int width,
-                                       int height, int imageFlags);
-
-// Deletes the specified framebuffer.
-void mnvgDeleteFramebuffer(MNVGframebuffer* framebuffer);
+void mnvgBindFramebuffer(NVGcontext* ctx, int img);
+int mnvgCreateFramebuffer(NVGcontext* ctx, int w, int h, int imageFlags);
 
 //
 // Metal bridging functions
